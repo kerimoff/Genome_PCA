@@ -1,29 +1,5 @@
 #!/usr/bin/env nextflow
 
-// executables 
-plink = "/gpfs/hpchome/peikova/software/plink/plink"
-ldak5 = "/gpfs/hpchome/peikova/software/ldak5.linux"
-// path to script for plotting and mapping
-plot_pca = "plot_pca.R"
-
-params.data_name = 'ImmVar'
-params.vcf = "/gpfs/hpchome/a72094/hpc/projects/population_PCA/genotypes/ImmVar_GRCh38.filtered.vcf.gz"
-
-// file with populations of main dataset
-params.populations_file = "/gpfs/hpchome/peikova/bioinf2/project/igsr_samples.tsv"
-
-// path to main dataset
-params.main_vcf = "/gpfs/hpchome/peikova/bioinf2/project/source_data/GRCh38_renamed_ids_no_multiallelic.vcf.gz"
-
-params.num_pc = 3
-params.threads = 16
-params.outdir = "nf_results/$params.data_name"
-
-// file with samples (americans) to remove for pca mapping
-params.ids_to_remove_file = "/gpfs/hpchome/peikova/bioinf2/project/amrs.txt"
-// flag if remove samples before mapping
-params.exclude_population = true
-
 vcf_file = file(params.vcf)
 main_vcf = file(params.main_vcf)
 populations_file = file(params.populations_file)
@@ -43,10 +19,10 @@ process main_vcf_to_binary{
     script:
     """
     # do ld pruning and save resulted snps in file  
-    $plink --vcf vcf_main.vcf.gz --vcf-half-call h --indep-pairwise 50000 200 0.05 --out main_pruned_varaints_list --threads $params.threads
+    plink2 --vcf vcf_main.vcf.gz --vcf-half-call h --indep-pairwise 50000 200 0.05 --out main_pruned_varaints_list --threads ${task.cpus}
 
     # make bfiles for pruned 1000 genome proj 
-    $plink --vcf vcf_main.vcf.gz --vcf-half-call h --extract main_pruned_varaints_list.prune.in --make-bed --out main
+    plink2 --vcf vcf_main.vcf.gz --vcf-half-call h --extract main_pruned_varaints_list.prune.in --make-bed --out main
     """
 }
 
@@ -61,12 +37,13 @@ if(params.exclude_population){
 
     script:
     """
-    $plink --bfile main --remove-fam ids_to_remove.txt --make-bed --out main
+    plink2 --bfile main --remove-fam ids_to_remove.txt --make-bed --out main
+    
     # finds dublicate vars
-    $plink --bfile main --list-duplicate-vars --out dubl
+    plink2 --bfile main --list-duplicate-vars --out dubl
 
     # delete dublicate vars
-    $plink --bfile main --exclude dubl.dupvar --snps-only --make-bed --out main_no_dubl
+    plink2 --bfile main --exclude dubl.dupvar --snps-only --make-bed --out main_no_dubl
     """
     }
 }else{
@@ -80,9 +57,10 @@ if(params.exclude_population){
     script:
     """
     # finds dublicate vars
-    $plink --bfile main --list-duplicate-vars --out dubl
+    plink2 --bfile main --list-duplicate-vars --out dubl
+    
     # delete dublicate vars
-    $plink --bfile main --exclude dubl.dupvar --snps-only --make-bed --out main_no_dubl
+    plink2 --bfile main --exclude dubl.dupvar --snps-only --make-bed --out main_no_dubl
     """
     }
 
@@ -98,10 +76,9 @@ process convertVCFtoBED{
 
     script:
     """
-    $plink --vcf source.vcf.gz --out binary_source --threads $params.threads
-    
-    $plink --bfile binary_source --list-duplicate-vars --out list_dubl
-    $plink --bfile binary_source --exclude list_dubl.dupvar --snps-only --make-bed --out binary_source
+    plink2 --vcf source.vcf.gz --out binary_source --threads ${task.cpus}
+    plink2 --bfile binary_source --list-duplicate-vars --out list_dubl
+    plink2 --bfile binary_source --exclude list_dubl.dupvar --snps-only --make-bed --out binary_source
     """
 }
 
@@ -115,7 +92,7 @@ process get_SNPs_list_from_main_dataset{
 
     script:
     """
-    $plink --bfile main_source --write-snplist --out main_snps_list --snps-only
+    plink2 --bfile main_source --write-snplist --out main_snps_list --snps-only
     """
 }
 
@@ -130,9 +107,10 @@ process extract_SNPs_and_make_bed{
 
     // extract snps present in pruned data from new dataset
     // --make-bed makes sure bfiles created!
+    script:
     """
-    $plink --bfile binary_source --extract main.snplist --make-bed --out new_dataset_overlapped
-    $plink --bfile new_dataset_overlapped --write-snplist --out overlapped_snps
+    plink2 --bfile binary_source --extract main.snplist --make-bed --out new_dataset_overlapped
+    plink2 --bfile new_dataset_overlapped --write-snplist --out overlapped_snps
     """
 }
 
@@ -146,8 +124,9 @@ process extract_overlapped_SNPs_from_main_dataset {
     set file('main_overlapped.bed'), file('main_overlapped.bim'), file('main_overlapped.fam') into main_to_kins
     set file('main_overlapped.bed'), file('main_overlapped.bim'), file('main_overlapped.fam') into main_bed_to_pca
 
+    script:
     """
-    $plink --bfile main_source --extract overlapped_snps.snplist --make-bed --out main_overlapped
+    plink2 --bfile main_source --extract overlapped_snps.snplist --make-bed --out main_overlapped
     """
 }
 
@@ -158,13 +137,14 @@ process calc_kins_matrices{
     output:
     set file("main_overlapped_kins.grm.bin"), file("main_overlapped_kins.grm.id"), file("main_overlapped_kins.grm.adjust"), file("main_overlapped_kins.grm.details") into main_to_pca
     
+    script:
     """
-    $ldak5  --calc-kins-direct main_overlapped_kins --bfile main_overlapped --ignore-weights YES --power -0.25
+    ldak --calc-kins-direct main_overlapped_kins --bfile main_overlapped --ignore-weights YES --power -0.25
     """
 }
 
 process calc_pca_and_loads{
-    publishDir "$params.outdir", mode: 'copy'
+    publishDir "${params.outdir}", mode: 'copy'
 
     input:
     set file("main_overlapped_kins.grm.bin"), file("main_overlapped_kins.grm.id"), file("main_overlapped_kins.grm.adjust"), file("main_overlapped_kins.grm.details") from main_to_pca
@@ -174,14 +154,16 @@ process calc_pca_and_loads{
     file 'main_overlapped_loads.load' into loads_for_mapping
     file 'main_overlapped_pca.vect' into plot_data_vect
      
+    script: 
     """
-    $ldak5 --pca main_overlapped_pca --grm main_overlapped_kins --axes $params.num_pc
-    $ldak5 --calc-pca-loads main_overlapped_loads --grm main_overlapped_kins --pcastem main_overlapped_pca --bfile main_overlapped
+    ldak --pca main_overlapped_pca --grm main_overlapped_kins --axes $params.num_pc
+    ldak --calc-pca-loads main_overlapped_loads --grm main_overlapped_kins --pcastem main_overlapped_pca --bfile main_overlapped
     """
 }
 
 process map_new_dataset{
-    publishDir "$params.outdir", mode: 'copy'
+    publishDir "${params.outdir}", mode: 'copy'
+    
     input:
     set file('new_dataset_overlapped.bed'), file('new_dataset_overlapped.bim'), file('new_dataset_overlapped.fam') from new_dataset_overlapped2
     file 'main_overlapped_loads.load' from loads_for_mapping
@@ -189,14 +171,16 @@ process map_new_dataset{
     output:
     file 'new_dataset_scores.profile.adj' into plot_data
 
+    script:
     """
-    $ldak5  --calc-scores new_dataset_scores --bfile new_dataset_overlapped --scorefile main_overlapped_loads.load --power 0
+    ldak  --calc-scores new_dataset_scores --bfile new_dataset_overlapped --scorefile main_overlapped_loads.load --power 0
     """
 
 }
 
 process plot_pca{
-    publishDir "$params.outdir", mode: 'copy'
+    publishDir "${params.outdir}", mode: 'copy'
+    
     input:
     file 'new_dataset_scores.profile.adj' from plot_data
     file 'main_overlapped_pca.vect' from plot_data_vect
@@ -205,8 +189,9 @@ process plot_pca{
     output:
     set file('main_pca.png'), file('projections_only.png'), file('projections_on_main.png'), file('populations.tsv'), file('knn_threshold.png'), file('knn.png')
 
+    script:
     """
-    Rscript $plot_pca main_overlapped_pca.vect new_dataset_scores.profile.adj samples_data.tsv $params.data_name
+    Rscript $baseDir/bin/plot_pca.R main_overlapped_pca.vect new_dataset_scores.profile.adj samples_data.tsv $params.data_name
     """
 
 }
