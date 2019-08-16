@@ -10,6 +10,8 @@ populations_file = file(params.populations_file)
 // add option for only pca without mapping
 
 process main_vcf_to_binary{
+    storeDir "$baseDir/reference_vcf_cache/"
+    
     input:
     file "vcf_main.vcf.gz" from main_vcf
 
@@ -28,6 +30,8 @@ process main_vcf_to_binary{
 
 if(params.exclude_population){
     process remove_family{
+    storeDir "$baseDir/reference_vcf_cache/"
+
     input:
     set file('main.bed'), file('main.bim'), file('main.fam') from main_to_delete_dublicates
     file 'ids_to_remove.txt' from file(params.ids_to_remove_file)
@@ -48,6 +52,8 @@ if(params.exclude_population){
     }
 }else{
     process remove_dubl{
+    storeDir "$baseDir/reference_vcf_cache/"
+
     input:
     set file('main.bed'), file('main.bim'), file('main.fam') from main_to_delete_dublicates
   
@@ -66,6 +72,21 @@ if(params.exclude_population){
 
 }
 
+process get_SNPs_list_from_main_dataset{
+    storeDir "$baseDir/reference_vcf_cache/"
+
+    input: 
+    set file('main_source.bed'), file('main_source.bim'), file('main_source.fam') from main_to_extract_snps
+
+    output:
+    file 'main_snps_list.snplist' into main_snps_file
+
+    script:
+    """
+    plink2 --bfile main_source --write-snplist --out main_snps_list --snps-only
+    """
+}
+
 // convert vcf file to plink binary file (.bed)
 process convertVCFtoBED{
     input:
@@ -79,20 +100,6 @@ process convertVCFtoBED{
     plink2 --vcf source.vcf.gz --out binary_source --threads ${task.cpus}
     plink2 --bfile binary_source --list-duplicate-vars --out list_dubl
     plink2 --bfile binary_source --exclude list_dubl.dupvar --snps-only --make-bed --out binary_source
-    """
-}
-
-
-process get_SNPs_list_from_main_dataset{
-    input: 
-    set file('main_source.bed'), file('main_source.bim'), file('main_source.fam') from main_to_extract_snps
-
-    output:
-    file 'main_snps_list.snplist' into main_snps_file
-
-    script:
-    """
-    plink2 --bfile main_source --write-snplist --out main_snps_list --snps-only
     """
 }
 
