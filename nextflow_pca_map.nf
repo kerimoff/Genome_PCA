@@ -97,7 +97,7 @@ process convertVCFtoBED{
 
     script:
     """
-    plink2 --vcf source.vcf.gz --out binary_source --threads ${task.cpus}
+    plink2 --vcf source.vcf.gz --vcf-half-call h --out binary_source --threads ${task.cpus}
     plink2 --bfile binary_source --list-duplicate-vars --out list_dubl
     plink2 --bfile binary_source --exclude list_dubl.dupvar --snps-only --make-bed --out binary_source
     """
