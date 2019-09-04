@@ -1,4 +1,5 @@
 .nextflow*
-results/
+results*/
 work/
 singularity*/
+reference*/
