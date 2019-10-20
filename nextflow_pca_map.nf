@@ -198,7 +198,7 @@ process plot_pca{
 
     script:
     """
-    Rscript $baseDir/bin/plot_pca.R main_overlapped_pca.vect new_dataset_scores.profile.adj samples_data.tsv $params.data_name
+    Rscript $baseDir/bin/plot_pca.R main_overlapped_pca.vect new_dataset_scores.profile.adj samples_data.tsv $params.data_name $params.num_pc
     """
 
 }

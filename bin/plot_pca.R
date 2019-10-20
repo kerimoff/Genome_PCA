@@ -11,9 +11,14 @@ pca_table = if (is.na(args[1])) 'main_overlapped_pca.vect' else args[1]
 projections = if (is.na(args[2])) 'new_dataset_scores.profile.adj' else args[2]
 source_populations_file = if (is.na(args[3])) "samples_data.tsv" else args[3]
 data_name = if (is.na(args[4])) 'New_dataset' else args[4] 
+n_pcs = if (is.na(args[5])) 3 else args[5] 
 
+data_colnames <- c("genotype_id")
+for (i in 1:n_pcs) {
+  data_colnames <- c(data_colnames, paste0("PC",i))
+}
 pca <- read.table(pca_table, header = FALSE, )
-pca <- pca %>% select(-c(2)) %>% rename(genotype_id=V1, PC1=V3, PC2=V4, PC3=V5)
+pca <- pca %>% select(-c(2)) %>% setNames(data_colnames)
 
 source_populations = read.table(source_populations_file, header = TRUE, sep='\t')
 main_pca <- merge(pca, select(source_populations, genotype_id, superpopulation_code), by  = "genotype_id") 
@@ -26,7 +31,7 @@ ggsave('main_pca.png')
 
 projections_pcs <- read.table(projections, header = TRUE)
 projections_pcs <- projections_pcs %>% select(-c(2,3,4)) %>% 
-  rename(genotype_id=ID1, PC1=Adjusted1, PC2=Adjusted2, PC3=Adjusted3) %>% 
+  setNames(data_colnames) %>% 
   mutate(superpopulation_code = data_name)
 
 ggplot(projections_pcs, aes(x=PC1, y=PC2)) + geom_point()+ coord_fixed()
