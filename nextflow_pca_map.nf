@@ -163,7 +163,7 @@ process calc_pca_and_loads{
      
     script: 
     """
-    ldak --pca main_overlapped_pca --grm main_overlapped_kins --axes $params.num_pc
+    ldak --pca main_overlapped_pca --grm main_overlapped_kins --axes ${params.num_pc}
     ldak --calc-pca-loads main_overlapped_loads --grm main_overlapped_kins --pcastem main_overlapped_pca --bfile main_overlapped
     """
 }
@@ -194,13 +194,12 @@ process plot_pca{
     file 'samples_data.tsv' from populations_file
 
     output:
-    set file('main_pca.png'), file('projections_only.png'), file('projections_on_main.png'), file('populations.tsv'), file('knn_threshold.png'), file('knn.png')
+    set file('plots/*'), file('populations.tsv'), file('pop_assigned*.tsv')
 
     script:
     """
-    Rscript $baseDir/bin/plot_pca.R main_overlapped_pca.vect new_dataset_scores.profile.adj samples_data.tsv $params.data_name $params.num_pc
+    Rscript $baseDir/bin/plot_pca.R main_overlapped_pca.vect new_dataset_scores.profile.adj samples_data.tsv ${params.data_name} ${params.num_pc}
     """
-
 }
 
 workflow.onComplete { 
